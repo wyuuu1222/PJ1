@@ -3,95 +3,489 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="供法律專業人員審閱合約使用的法律條款翻譯助手。" />
-  <title>法譯助手｜法律合約條款翻譯</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>AI 對決五子棋 (Gomoku AI vs AI)</title>
+  <style>
+    :root {
+      --bg: #f4ede2;
+      --board: #d9b47a;
+      --line: #7b4e1f;
+      --ink: #1f1f1f;
+      --muted: #5f5f5f;
+      --panel: #fffdf8;
+      --accent: #b85c2d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+    h1 { margin: 0; font-size: 28px; }
+    .desc, .panel {
+      background: var(--panel);
+      border: 1px solid #e6d9c5;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .desc p { margin: 6px 0; color: var(--muted); }
+    .controls {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      align-items: center;
+    }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button, select {
+      border: 1px solid #c8b392;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    button.primary { background: #2f6fdb; border-color: #2f6fdb; color: #fff; }
+    button.warn { background: #fff7f2; color: var(--accent); }
+    .stat { font-size: 14px; color: #3c3c3c; }
+    .board-wrap {
+      background: var(--panel);
+      border: 1px solid #e6d9c5;
+      border-radius: 10px;
+      padding: 12px;
+      display: grid;
+      place-items: center;
+    }
+    canvas {
+      width: min(92vw, 680px);
+      height: min(92vw, 680px);
+      max-width: 680px;
+      max-height: 680px;
+      background: var(--board);
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1px rgba(80, 44, 15, 0.4);
+    }
+    #messageLog { color: var(--muted); }
+  </style>
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="主要導覽">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">譯</div>
-        <div>
-          <strong>法譯助手</strong>
-          <span>Legal Translation Desk</span>
-        </div>
+  <div class="container">
+    <h1>AI 對決五子棋 (Gomoku AI vs AI)</h1>
+
+    <section class="desc" id="desc">
+      <p>這是 AI vs AI 自動對弈版本，使用 15×15 棋盤。</p>
+      <p>每局開始都會隨機抽籤決定哪個 AI 執黑先手、哪個 AI 執白後手。</p>
+      <p>AI 採簡單攻防評分策略：先找必勝、再擋必敗，最後以啟發式評分選點。</p>
+      <p>可使用「開始 / 重新開始 / 暫停或繼續」與速度選單觀察整局進行。</p>
+    </section>
+
+    <section class="panel controls" id="controls">
+      <div class="btn-row">
+        <button id="startBtn" class="primary" type="button">開始</button>
+        <button id="restartBtn" type="button">重新開始</button>
+        <button id="pauseBtn" class="warn" type="button" disabled>暫停</button>
       </div>
+      <label>速度
+        <select id="speedSelect">
+          <option value="800">慢 (800ms)</option>
+          <option value="400" selected>中 (400ms)</option>
+          <option value="150">快 (150ms)</option>
+        </select>
+      </label>
+      <div class="stat" id="drawResult">本局抽籤結果：尚未開始</div>
+      <div class="stat" id="turnText">當前回合：-</div>
+      <div class="stat" id="moveText">步數：0</div>
+      <div class="stat" id="statusText">狀態：READY</div>
+    </section>
 
-      <div class="workspace-switcher">
-        <span class="eyebrow">目前工作區</span>
-        <button class="workspace-button" type="button" aria-label="切換工作區">
-          <span><i class="status-dot"></i>法律事務部</span>
-          <span aria-hidden="true">⌄</span>
-        </button>
-      </div>
+    <section class="board-wrap">
+      <canvas id="board" width="700" height="700" aria-label="15x15 五子棋棋盤"></canvas>
+    </section>
 
-      <nav class="nav-list">
-        <a class="nav-item active" href="#dashboard" data-view="dashboard"><span>⌂</span>工作總覽</a>
-        <a class="nav-item" href="#translator" data-view="translator"><span>文</span>合約翻譯</a>
-        <a class="nav-item" href="#glossary" data-view="glossary"><span>書</span>術語辭典</a>
-        <a class="nav-item" href="#history" data-view="history"><span>↺</span>審閱紀錄</a>
-        <a class="nav-item" href="#settings" data-view="settings"><span>⚙</span>系統設定</a>
-      </nav>
-
-      <div class="sidebar-bottom">
-        <div class="security-note"><span>▣</span><div><strong>企業級保護</strong><small>文件內容加密儲存</small></div></div>
-        <div class="user-card"><div class="avatar">林</div><div><strong>林專員</strong><small>法律事務部 IT</small></div><button type="button" aria-label="更多使用者選項">•••</button></div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div class="mobile-brand"><div class="brand-mark">譯</div><strong>法譯助手</strong></div>
-        <div class="breadcrumb"><span>法律事務部</span><b>/</b><strong id="page-title">工作總覽</strong></div>
-        <div class="topbar-actions"><button class="icon-button" type="button" aria-label="通知">♧<i class="notification-dot"></i></button><button class="help-button" type="button">需要協助？</button></div>
-      </header>
-
-      <div class="page-content">
-        <section class="view" id="dashboard-view">
-          <div class="page-heading"><div><span class="eyebrow">WEDNESDAY, OCTOBER 14, 2026</span><h1>早安，林專員<span class="heading-accent">。</span></h1><p>這是法律事務部的合約翻譯工作概況。</p></div><button class="primary-button" type="button" data-scroll-to="translator"><span>＋</span> 新增翻譯工作</button></div>
-
-          <div class="metric-grid">
-            <article class="metric-card"><div class="metric-icon blue">文</div><div><span>待審閱條款</span><strong>12</strong><small class="trend positive">↗ 3 <em>較上週</em></small></div></article>
-            <article class="metric-card"><div class="metric-icon green">✓</div><div><span>本月完成文件</span><strong>28</strong><small class="trend positive">↗ 18% <em>較上月</em></small></div></article>
-            <article class="metric-card"><div class="metric-icon gold">字</div><div><span>術語命中數</span><strong>1,284</strong><small class="trend neutral">維持穩定</small></div></article>
-            <article class="metric-card"><div class="metric-icon purple">!</div><div><span>待確認提醒</span><strong>07</strong><small class="trend warning">需優先處理</small></div></article>
-          </div>
-
-          <div class="workspace-grid">
-            <section class="panel upload-panel" id="translator">
-              <div class="panel-heading"><div><span class="eyebrow">NEW TRANSLATION</span><h2>開始新的翻譯工作</h2></div><span class="step-label">STEP 01 / 03</span></div>
-              <div class="upload-zone" id="upload-zone" tabindex="0" role="button" aria-label="上傳合約文件">
-                <input id="file-input" type="file" accept=".pdf,.doc,.docx,.txt" hidden />
-                <div class="upload-icon">↑</div><h3>拖放合約文件至此處</h3><p>或 <button class="text-button" id="choose-file" type="button">點擊選擇檔案</button></p><small>支援 PDF、DOCX、TXT，單一檔案最大 25 MB</small>
-              </div>
-              <div class="selected-file" id="selected-file" hidden><span class="file-icon">▤</span><div><strong id="file-name">—</strong><small id="file-size">—</small></div><button id="remove-file" type="button" aria-label="移除檔案">×</button></div>
-              <div class="translation-controls"><label>翻譯方向<select id="language-select"><option>英文 → 繁體中文</option><option>繁體中文 → 英文</option><option>日文 → 繁體中文</option></select></label><label>文件類型<select><option>保密協議（NDA）</option><option>服務合約</option><option>授權合約</option><option>其他</option></select></label></div>
-              <button class="primary-button full" id="translate-button" type="button"><span>✦</span> 開始法律翻譯</button>
-              <p class="privacy-line">▣ 文件內容僅供本次處理使用，並依企業資安政策加密保護。</p>
-            </section>
-
-            <section class="panel recent-panel"><div class="panel-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>最近工作</h2></div><button class="link-button" type="button" data-view-link="history">查看全部 →</button></div><div class="recent-list"><div class="recent-item"><div class="doc-icon blue">PDF</div><div><strong>Mutual_NDA_v3.pdf</strong><span>英文 → 繁體中文 · 12 分鐘前</span></div><span class="pill review">待審閱</span></div><div class="recent-item"><div class="doc-icon green">DOC</div><div><strong>Vendor_Agreement.docx</strong><span>英文 → 繁體中文 · 昨日</span></div><span class="pill done">已完成</span></div><div class="recent-item"><div class="doc-icon gold">PDF</div><div><strong>Data_Processing_Addendum.pdf</strong><span>英文 → 繁體中文 · 10 月 12 日</span></div><span class="pill done">已完成</span></div></div></section>
-          </div>
-
-          <section class="panel review-panel"><div class="panel-heading"><div><span class="eyebrow">REVIEW QUEUE</span><h2>待審閱條款</h2></div><button class="filter-button" type="button">全部狀態⌄</button></div><div class="table-wrap"><table><thead><tr><th>文件與條款</th><th>提醒類型</th><th>最後更新</th><th>狀態</th><th></th></tr></thead><tbody><tr><td><strong>Mutual_NDA_v3.pdf</strong><span>第 4.2 條 · Indemnification</span></td><td><span class="risk-tag high">高優先</span> 法律語氣</td><td>12 分鐘前</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr><tr><td><strong>Mutual_NDA_v3.pdf</strong><span>第 7 條 · Governing Law</span></td><td><span class="risk-tag medium">一般</span> 定義詞</td><td>15 分鐘前</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr><tr><td><strong>Service_Agreement.docx</strong><span>第 11.1 條 · Limitation of Liability</span></td><td><span class="risk-tag low">低優先</span> 金額檢查</td><td>昨日</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr></tbody></table></div></section>
-
-          <div class="notice-banner"><span class="notice-symbol">i</span><div><strong>翻譯結果僅供律師審閱</strong><p>本工具���供語言轉換與一致性檢查，不取代法律專業判斷。請務必核對原文、適用法律及交易脈絡。</p></div><button type="button" aria-label="關閉提示" id="dismiss-notice">×</button></div>
-        </section>
-
-        <section class="view placeholder-view" id="translator-view" hidden><div class="page-heading"><div><span class="eyebrow">TRANSLATION WORKSPACE</span><h1>合約翻譯</h1><p>上傳文件並在雙欄工作區中逐條審閱法律譯文。</p></div></div><div class="translation-workspace panel"><div class="workspace-toolbar"><div><span class="pill review">示範文件</span><strong>Mutual_NDA_v3.pdf</strong></div><div><button class="secondary-button" type="button">儲存草稿</button><button class="primary-button" type="button" id="export-button">匯出審閱版</button></div></div><div class="comparison-grid"><article><div class="column-heading">原文 English <span>Clause 4.2</span></div><p><b>4.2 Indemnification.</b> Each Party shall indemnify and hold harmless the other Party from and against any and all claims, losses, liabilities and expenses arising out of a breach of this Agreement.</p></article><article><div class="column-heading">繁體中文譯文 <span class="translation-status">AI 建議譯文</span></div><p><b>4.2 賠償。</b>任一方均應就因違反本協議而產生之任何及所有請求、損失、責任及費用，向另一方提供賠償並使其免受損害。</p><button class="review-check" type="button">✓ 標記為已審閱</button></article></div><div class="alerts"><h3>審閱提醒</h3><div class="alert-item"><span class="alert-icon high">!</span><div><strong>法律義務語氣</strong><p>shall 已譯為「應」，表示具拘束力之義務，請確認是否符合本案談判立場。</p></div><button class="confirm-alert" type="button">確認</button></div><div class="alert-item"><span class="alert-icon medium">⌁</span><div><strong>術語一致性</strong><p>indemnify 建議沿用術語辭典：「賠償」；hold harmless 建議：「使其免受損害」。</p></div><button class="confirm-alert" type="button">確認</button></div></div></div></section>
-
-        <section class="view placeholder-view" id="glossary-view" hidden><div class="page-heading"><div><span class="eyebrow">LEGAL GLOSSARY</span><h1>術語辭典</h1><p>統一公司常用法律、金融及合約術語的譯法。</p></div><button class="primary-button" type="button">＋ 新增術語</button></div><div class="panel glossary-panel"><div class="search-row"><input id="glossary-search" type="search" placeholder="搜尋英文術語或中文譯法…" aria-label="搜尋術語" /><span>共 128 個術語</span></div><div class="glossary-grid" id="glossary-grid"><div class="glossary-card"><strong>indemnify</strong><span>賠償</span><small>契約義務 · 已核准</small></div><div class="glossary-card"><strong>hold harmless</strong><span>使其免受損害</span><small>契約義務 · 已核准</small></div><div class="glossary-card"><strong>best efforts</strong><span>最大努力</span><small>法律標準 · 已核准</small></div><div class="glossary-card"><strong>governing law</strong><span>準據法</span><small>管轄條款 · 已核准</small></div><div class="glossary-card"><strong>Confidential Information</strong><span>機密資訊</span><small>定義詞 · 已核准</small></div><div class="glossary-card"><strong>Effective Date</strong><span>生效日</span><small>定義詞 · 已核准</small></div></div></div></section>
-
-        <section class="view placeholder-view" id="history-view" hidden><div class="page-heading"><div><span class="eyebrow">REVIEW HISTORY</span><h1>審閱紀錄</h1><p>追蹤文件版本、翻譯結果及律師確認紀錄。</p></div></div><div class="panel empty-panel"><div class="empty-icon">↺</div><h2>審閱紀錄已集中管理</h2><p>從工作總覽開啟文件後，所有操作將自動記錄於此。</p></div></section>
-        <section class="view placeholder-view" id="settings-view" hidden><div class="page-heading"><div><span class="eyebrow">SYSTEM SETTINGS</span><h1>系統設定</h1><p>管理翻譯偏好、權限與資料保存政策。</p></div></div><div class="panel settings-list"><label>預設翻譯方向<select><option>英文 → 繁體中文</option><option>繁體中文 → 英文</option></select></label><label>文件保存期限<select><option>30 天</option><option>90 天</option><option>依企業政策</option></select></label><label class="toggle-row">翻譯完成後寄送通知 <input type="checkbox" checked /><span class="toggle"></span></label></div></section>
-      </div>
-    </main>
+    <section class="panel" id="messageLog">最近一步：-</section>
   </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="script.js"></script>
+
+  <script>
+    const BOARD_SIZE = 15;
+    const EMPTY = 0;
+    const BLACK = 1;
+    const WHITE = 2;
+    const STATUS = {
+      READY: "READY",
+      RUNNING: "RUNNING",
+      PAUSED: "PAUSED",
+      ENDED: "ENDED"
+    };
+
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const speedSelect = document.getElementById("speedSelect");
+    const drawResultEl = document.getElementById("drawResult");
+    const turnTextEl = document.getElementById("turnText");
+    const moveTextEl = document.getElementById("moveText");
+    const statusTextEl = document.getElementById("statusText");
+    const messageLogEl = document.getElementById("messageLog");
+
+    const Renderer = {
+      padding: 32,
+      get cellSize() {
+        return (canvas.width - this.padding * 2) / (BOARD_SIZE - 1);
+      },
+      toPixel(row, col) {
+        return {
+          x: this.padding + col * this.cellSize,
+          y: this.padding + row * this.cellSize
+        };
+      },
+      drawBoard(boardState) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#7b4e1f";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < BOARD_SIZE; i += 1) {
+          const offset = this.padding + i * this.cellSize;
+          ctx.beginPath();
+          ctx.moveTo(this.padding, offset);
+          ctx.lineTo(canvas.width - this.padding, offset);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(offset, this.padding);
+          ctx.lineTo(offset, canvas.height - this.padding);
+          ctx.stroke();
+        }
+
+        for (let row = 0; row < BOARD_SIZE; row += 1) {
+          for (let col = 0; col < BOARD_SIZE; col += 1) {
+            if (boardState[row][col] !== EMPTY) this.drawStone(row, col, boardState[row][col]);
+          }
+        }
+      },
+      drawStone(row, col, color) {
+        const { x, y } = this.toPixel(row, col);
+        const radius = this.cellSize * 0.42;
+        const gradient = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.2, x, y, radius);
+        if (color === BLACK) {
+          gradient.addColorStop(0, "#4d4d4d");
+          gradient.addColorStop(1, "#0f0f0f");
+        } else {
+          gradient.addColorStop(0, "#ffffff");
+          gradient.addColorStop(1, "#d9d9d9");
+        }
+        ctx.beginPath();
+        ctx.fillStyle = gradient;
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = color === BLACK ? "#000" : "#a7a7a7";
+        ctx.stroke();
+      },
+      highlightLastMove(lastMove) {
+        if (!lastMove) return;
+        const { x, y } = this.toPixel(lastMove.row, lastMove.col);
+        const size = this.cellSize * 0.45;
+        ctx.strokeStyle = "#c93f1d";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+      }
+    };
+
+    const RuleEngine = {
+      validateMove(board, row, col) {
+        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE && board[row][col] === EMPTY;
+      },
+      countDirection(board, row, col, color, dr, dc) {
+        let count = 0;
+        let r = row + dr;
+        let c = col + dc;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === color) {
+          count += 1;
+          r += dr;
+          c += dc;
+        }
+        return count;
+      },
+      checkWin(board, row, col, color) {
+        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        return dirs.some(([dr, dc]) => {
+          const total = 1
+            + this.countDirection(board, row, col, color, dr, dc)
+            + this.countDirection(board, row, col, color, -dr, -dc);
+          return total >= 5;
+        });
+      },
+      checkDraw(moveCount) {
+        return moveCount >= BOARD_SIZE * BOARD_SIZE;
+      }
+    };
+
+    const AIEngine = {
+      getMove(state, color) {
+        if (state.moveCount === 0) return { row: 7, col: 7 };
+
+        const opponent = color === BLACK ? WHITE : BLACK;
+        const empties = this.getEmptyCells(state.board);
+
+        for (const cell of empties) {
+          state.board[cell.row][cell.col] = color;
+          const win = RuleEngine.checkWin(state.board, cell.row, cell.col, color);
+          state.board[cell.row][cell.col] = EMPTY;
+          if (win) return cell;
+        }
+
+        for (const cell of empties) {
+          state.board[cell.row][cell.col] = opponent;
+          const lose = RuleEngine.checkWin(state.board, cell.row, cell.col, opponent);
+          state.board[cell.row][cell.col] = EMPTY;
+          if (lose) return cell;
+        }
+
+        const candidates = this.getCandidateCells(state.board);
+        let bestMove = null;
+        let bestScore = -Infinity;
+
+        for (const cell of (candidates.length ? candidates : empties)) {
+          const attackScore = this.evaluatePlacement(state.board, cell.row, cell.col, color);
+          const defendScore = this.evaluatePlacement(state.board, cell.row, cell.col, opponent);
+          const centerBias = 14 - (Math.abs(7 - cell.row) + Math.abs(7 - cell.col));
+          const score = attackScore * 1.0 + defendScore * 0.9 + centerBias;
+          if (score > bestScore) {
+            bestScore = score;
+            bestMove = cell;
+          }
+        }
+
+        return bestMove || empties[0] || { row: 0, col: 0 };
+      },
+      getEmptyCells(board) {
+        const cells = [];
+        for (let row = 0; row < BOARD_SIZE; row += 1) {
+          for (let col = 0; col < BOARD_SIZE; col += 1) {
+            if (board[row][col] === EMPTY) cells.push({ row, col });
+          }
+        }
+        return cells;
+      },
+      getCandidateCells(board) {
+        const candidates = [];
+        for (let row = 0; row < BOARD_SIZE; row += 1) {
+          for (let col = 0; col < BOARD_SIZE; col += 1) {
+            if (board[row][col] !== EMPTY) continue;
+            if (this.hasNeighbor(board, row, col, 2)) candidates.push({ row, col });
+          }
+        }
+        return candidates;
+      },
+      hasNeighbor(board, row, col, dist) {
+        for (let dr = -dist; dr <= dist; dr += 1) {
+          for (let dc = -dist; dc <= dist; dc += 1) {
+            if (dr === 0 && dc === 0) continue;
+            const r = row + dr;
+            const c = col + dc;
+            if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) continue;
+            if (board[r][c] !== EMPTY) return true;
+          }
+        }
+        return false;
+      },
+      evaluatePlacement(board, row, col, color) {
+        board[row][col] = color;
+        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        let best = 0;
+        for (const [dr, dc] of dirs) {
+          const score = this.scoreLine(board, row, col, color, dr, dc);
+          if (score > best) best = score;
+        }
+        board[row][col] = EMPTY;
+        return best;
+      },
+      scoreLine(board, row, col, color, dr, dc) {
+        let count = 1;
+        let openEnds = 0;
+
+        let r = row + dr;
+        let c = col + dc;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === color) {
+          count += 1;
+          r += dr;
+          c += dc;
+        }
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === EMPTY) openEnds += 1;
+
+        r = row - dr;
+        c = col - dc;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === color) {
+          count += 1;
+          r -= dr;
+          c -= dc;
+        }
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === EMPTY) openEnds += 1;
+
+        if (count >= 5) return 100000;
+        if (count === 4 && openEnds === 2) return 10000;
+        if (count === 4 && openEnds === 1) return 1000;
+        if (count === 3 && openEnds === 2) return 800;
+        if (count === 3 && openEnds === 1) return 80;
+        if (count === 2 && openEnds === 2) return 50;
+        if (count === 2 && openEnds === 1) return 10;
+        return 2;
+      }
+    };
+
+    const GameEngine = {
+      state: null,
+      timer: null,
+      speedDelay: Number(speedSelect.value),
+      startNewGame(autoRun = false) {
+        this.stopTimer();
+        const board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY));
+        const ai1Black = Math.random() < 0.5;
+        this.state = {
+          board,
+          status: autoRun ? STATUS.RUNNING : STATUS.READY,
+          currentColor: BLACK,
+          blackAI: ai1Black ? "AI#1" : "AI#2",
+          whiteAI: ai1Black ? "AI#2" : "AI#1",
+          moveCount: 0,
+          lastMove: null,
+          moveHistory: []
+        };
+        this.renderAll();
+        if (autoRun) this.scheduleNextStep();
+      },
+      getCurrentAIName() {
+        return this.state.currentColor === BLACK ? this.state.blackAI : this.state.whiteAI;
+      },
+      stepLoop() {
+        if (!this.state || this.state.status !== STATUS.RUNNING) return;
+
+        const color = this.state.currentColor;
+        const aiName = this.getCurrentAIName();
+        this.updateStatus(`狀態：進行中（${aiName} 思考中）`);
+
+        let move = AIEngine.getMove(this.state, color);
+        if (!RuleEngine.validateMove(this.state.board, move.row, move.col)) {
+          move = AIEngine.getEmptyCells(this.state.board)[0] || move;
+        }
+        if (!RuleEngine.validateMove(this.state.board, move.row, move.col)) {
+          this.state.status = STATUS.ENDED;
+          this.updateStatus("狀態：錯誤（無合法落子）");
+          this.renderAll();
+          return;
+        }
+
+        this.state.board[move.row][move.col] = color;
+        this.state.moveCount += 1;
+        const timestamp = Date.now();
+        this.state.lastMove = { row: move.row, col: move.col, color };
+        this.state.moveHistory.push({ row: move.row, col: move.col, color, aiName, tMs: timestamp });
+        messageLogEl.textContent = `最近一步：${aiName} 落子 (${move.row}, ${move.col})`;
+
+        if (RuleEngine.checkWin(this.state.board, move.row, move.col, color)) {
+          this.state.status = STATUS.ENDED;
+          const winner = color === BLACK ? "黑" : "白";
+          this.updateStatus(`狀態：${winner}勝（${aiName}）`);
+          this.renderAll();
+          return;
+        }
+
+        if (RuleEngine.checkDraw(this.state.moveCount)) {
+          this.state.status = STATUS.ENDED;
+          this.updateStatus("狀態：平局");
+          this.renderAll();
+          return;
+        }
+
+        this.state.currentColor = color === BLACK ? WHITE : BLACK;
+        this.renderAll();
+        this.scheduleNextStep();
+      },
+      scheduleNextStep() {
+        this.stopTimer();
+        if (this.state?.status !== STATUS.RUNNING) return;
+        this.timer = window.setTimeout(() => this.stepLoop(), this.speedDelay);
+      },
+      stopTimer() {
+        if (this.timer) {
+          window.clearTimeout(this.timer);
+          this.timer = null;
+        }
+      },
+      pauseOrResume() {
+        if (!this.state) return;
+        if (this.state.status === STATUS.RUNNING) {
+          this.state.status = STATUS.PAUSED;
+          this.stopTimer();
+          this.renderAll();
+          return;
+        }
+        if (this.state.status === STATUS.PAUSED) {
+          this.state.status = STATUS.RUNNING;
+          this.renderAll();
+          this.scheduleNextStep();
+        }
+      },
+      start() {
+        if (!this.state || this.state.status === STATUS.ENDED) {
+          this.startNewGame(true);
+          return;
+        }
+        if (this.state.status === STATUS.READY) {
+          this.state.status = STATUS.RUNNING;
+          this.renderAll();
+          this.scheduleNextStep();
+        }
+      },
+      restart() {
+        this.startNewGame(true);
+      },
+      setSpeed(delay) {
+        this.speedDelay = delay;
+        if (this.state?.status === STATUS.RUNNING) this.scheduleNextStep();
+      },
+      updateStatus(text) {
+        statusTextEl.textContent = text;
+      },
+      renderAll() {
+        if (!this.state) return;
+        Renderer.drawBoard(this.state.board);
+        Renderer.highlightLastMove(this.state.lastMove);
+
+        drawResultEl.textContent = `本局抽籤結果：黑棋：${this.state.blackAI}（先手）｜白棋：${this.state.whiteAI}`;
+        const colorText = this.state.currentColor === BLACK ? "黑" : "白";
+        const currentAI = this.getCurrentAIName();
+        turnTextEl.textContent = this.state.status === STATUS.ENDED
+          ? "當前回合：-"
+          : `當前回合：${colorText}（${currentAI}）`;
+        moveTextEl.textContent = `步數：${this.state.moveCount}`;
+        if (this.state.status === STATUS.READY) {
+          this.updateStatus("狀態：READY");
+        } else if (this.state.status === STATUS.PAUSED) {
+          this.updateStatus("狀態：PAUSED");
+        } else if (this.state.status === STATUS.RUNNING && !statusTextEl.textContent.startsWith("狀態：進行中（")) {
+          this.updateStatus("狀態：RUNNING");
+        }
+
+        pauseBtn.disabled = this.state.status === STATUS.READY || this.state.status === STATUS.ENDED;
+        pauseBtn.textContent = this.state.status === STATUS.PAUSED ? "繼續" : "暫停";
+      }
+    };
+
+    startBtn.addEventListener("click", () => GameEngine.start());
+    restartBtn.addEventListener("click", () => GameEngine.restart());
+    pauseBtn.addEventListener("click", () => GameEngine.pauseOrResume());
+    speedSelect.addEventListener("change", (event) => {
+      GameEngine.setSpeed(Number(event.target.value));
+    });
+
+    GameEngine.startNewGame(false);
+  </script>
 </body>
 </html>
