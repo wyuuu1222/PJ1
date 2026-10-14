@@ -3,95 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="供法律專業人員審閱合約使用的法律條款翻譯助手。" />
-  <title>法譯助手｜法律合約條款翻譯</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet" />
+  <meta name="description" content="法律條款翻譯與合約審閱助手（前端 mock/demo 版）。" />
+  <title>法律條款翻譯與合約審閱助手</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="主要導覽">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">譯</div>
+  <main class="app" aria-labelledby="app-title">
+    <header class="app-header">
+      <p class="kicker">Legal Contract Review Assistant</p>
+      <h1 id="app-title">法律條款翻譯與合約審閱助手</h1>
+      <p class="intro">協助律師以一致法律術語進行條款翻譯與逐句審閱。以下翻譯與審閱提示為 <strong>mock/demo 輔助結果</strong>，不構成法律意見。</p>
+    </header>
+
+    <section class="card" aria-labelledby="input-title">
+      <h2 id="input-title">輸入原始條款</h2>
+      <div class="controls">
         <div>
-          <strong>法譯助手</strong>
-          <span>Legal Translation Desk</span>
+          <label for="source-language">原文語言</label>
+          <select id="source-language" aria-label="選擇原文語言">
+            <option value="zh-Hant">繁體中文</option>
+            <option value="en" selected>英文</option>
+            <option value="ja">日文</option>
+          </select>
+        </div>
+        <div>
+          <label for="target-language">目標語言</label>
+          <select id="target-language" aria-label="選擇目標語言">
+            <option value="zh-Hant" selected>繁體中文</option>
+            <option value="en">英文</option>
+            <option value="ja">日文</option>
+          </select>
         </div>
       </div>
 
-      <div class="workspace-switcher">
-        <span class="eyebrow">目前工作區</span>
-        <button class="workspace-button" type="button" aria-label="切換工作區">
-          <span><i class="status-dot"></i>法律事務部</span>
-          <span aria-hidden="true">⌄</span>
-        </button>
+      <label for="source-text">原始合約條款</label>
+      <textarea id="source-text" rows="8" placeholder="請貼上或輸入合約條款，例如：The Receiving Party shall keep all Confidential Information strictly confidential and shall not disclose it to any third party without prior written consent."></textarea>
+
+      <div class="button-row">
+        <button id="translate-button" type="button" class="primary">開始翻譯與審閱</button>
+        <button id="copy-button" type="button" class="secondary">複製譯文</button>
+        <button id="clear-button" type="button" class="ghost">清除內容</button>
       </div>
+      <p id="status" class="status" role="status" aria-live="polite">尚未開始翻譯。請先輸入條款內容。</p>
+    </section>
 
-      <nav class="nav-list">
-        <a class="nav-item active" href="#dashboard" data-view="dashboard"><span>⌂</span>工作總覽</a>
-        <a class="nav-item" href="#translator" data-view="translator"><span>文</span>合約翻譯</a>
-        <a class="nav-item" href="#glossary" data-view="glossary"><span>書</span>術語辭典</a>
-        <a class="nav-item" href="#history" data-view="history"><span>↺</span>審閱紀錄</a>
-        <a class="nav-item" href="#settings" data-view="settings"><span>⚙</span>系統設定</a>
-      </nav>
+    <section class="result-grid" aria-label="翻譯與審閱結果">
+      <article class="card">
+        <h2>原文與譯文對照</h2>
+        <p class="hint">以句為單位顯示，便於逐句審閱與校對。</p>
+        <div id="empty-state" class="empty-state">目前沒有翻譯結果。執行翻譯後將在此顯示對照內容。</div>
+        <div id="comparison" class="comparison" hidden>
+          <div class="comparison-head" id="comparison-head"></div>
+          <ol id="comparison-list" class="comparison-list" aria-label="逐句對照清單"></ol>
+        </div>
+      </article>
 
-      <div class="sidebar-bottom">
-        <div class="security-note"><span>▣</span><div><strong>企業級保護</strong><small>文件內容加密儲存</small></div></div>
-        <div class="user-card"><div class="avatar">林</div><div><strong>林專員</strong><small>法律事務部 IT</small></div><button type="button" aria-label="更多使用者選項">•••</button></div>
-      </div>
-    </aside>
+      <article class="card">
+        <h2>條款審閱提示（Mock/Demo）</h2>
+        <p class="hint">以下為輔助性提示，採保守措辭，請由合格法律專業人士進一步確認。</p>
+        <div id="hint-empty" class="empty-state">尚無審閱提示。翻譯後將依關鍵詞提供可能需要確認的項目。</div>
+        <ul id="review-hints" class="review-hints" hidden aria-label="審閱提示清單"></ul>
+      </article>
+    </section>
 
-    <main class="main-content">
-      <header class="topbar">
-        <div class="mobile-brand"><div class="brand-mark">譯</div><strong>法譯助手</strong></div>
-        <div class="breadcrumb"><span>法律事務部</span><b>/</b><strong id="page-title">工作總覽</strong></div>
-        <div class="topbar-actions"><button class="icon-button" type="button" aria-label="通知">♧<i class="notification-dot"></i></button><button class="help-button" type="button">需要協助？</button></div>
-      </header>
+    <footer class="disclaimer" aria-label="法律免責聲明">
+      <strong>法律免責聲明：</strong>
+      翻譯結果與審閱提示僅供輔助，不構成法律意見、法律建議或任何結論；使用者應依具體交易背景，由合格法律專業人士進行最終確認。
+    </footer>
+  </main>
 
-      <div class="page-content">
-        <section class="view" id="dashboard-view">
-          <div class="page-heading"><div><span class="eyebrow">WEDNESDAY, OCTOBER 14, 2026</span><h1>早安，林專員<span class="heading-accent">。</span></h1><p>這是法律事務部的合約翻譯工作概況。</p></div><button class="primary-button" type="button" data-scroll-to="translator"><span>＋</span> 新增翻譯工作</button></div>
-
-          <div class="metric-grid">
-            <article class="metric-card"><div class="metric-icon blue">文</div><div><span>待審閱條款</span><strong>12</strong><small class="trend positive">↗ 3 <em>較上週</em></small></div></article>
-            <article class="metric-card"><div class="metric-icon green">✓</div><div><span>本月完成文件</span><strong>28</strong><small class="trend positive">↗ 18% <em>較上月</em></small></div></article>
-            <article class="metric-card"><div class="metric-icon gold">字</div><div><span>術語命中數</span><strong>1,284</strong><small class="trend neutral">維持穩定</small></div></article>
-            <article class="metric-card"><div class="metric-icon purple">!</div><div><span>待確認提醒</span><strong>07</strong><small class="trend warning">需優先處理</small></div></article>
-          </div>
-
-          <div class="workspace-grid">
-            <section class="panel upload-panel" id="translator">
-              <div class="panel-heading"><div><span class="eyebrow">NEW TRANSLATION</span><h2>開始新的翻譯工作</h2></div><span class="step-label">STEP 01 / 03</span></div>
-              <div class="upload-zone" id="upload-zone" tabindex="0" role="button" aria-label="上傳合約文件">
-                <input id="file-input" type="file" accept=".pdf,.doc,.docx,.txt" hidden />
-                <div class="upload-icon">↑</div><h3>拖放合約文件至此處</h3><p>或 <button class="text-button" id="choose-file" type="button">點擊選擇檔案</button></p><small>支援 PDF、DOCX、TXT，單一檔案最大 25 MB</small>
-              </div>
-              <div class="selected-file" id="selected-file" hidden><span class="file-icon">▤</span><div><strong id="file-name">—</strong><small id="file-size">—</small></div><button id="remove-file" type="button" aria-label="移除檔案">×</button></div>
-              <div class="translation-controls"><label>翻譯方向<select id="language-select"><option>英文 → 繁體中文</option><option>繁體中文 → 英文</option><option>日文 → 繁體中文</option></select></label><label>文件類型<select><option>保密協議（NDA）</option><option>服務合約</option><option>授權合約</option><option>其他</option></select></label></div>
-              <button class="primary-button full" id="translate-button" type="button"><span>✦</span> 開始法律翻譯</button>
-              <p class="privacy-line">▣ 文件內容僅供本次處理使用，並依企業資安政策加密保護。</p>
-            </section>
-
-            <section class="panel recent-panel"><div class="panel-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>最近工作</h2></div><button class="link-button" type="button" data-view-link="history">查看全部 →</button></div><div class="recent-list"><div class="recent-item"><div class="doc-icon blue">PDF</div><div><strong>Mutual_NDA_v3.pdf</strong><span>英文 → 繁體中文 · 12 分鐘前</span></div><span class="pill review">待審閱</span></div><div class="recent-item"><div class="doc-icon green">DOC</div><div><strong>Vendor_Agreement.docx</strong><span>英文 → 繁體中文 · 昨日</span></div><span class="pill done">已完成</span></div><div class="recent-item"><div class="doc-icon gold">PDF</div><div><strong>Data_Processing_Addendum.pdf</strong><span>英文 → 繁體中文 · 10 月 12 日</span></div><span class="pill done">已完成</span></div></div></section>
-          </div>
-
-          <section class="panel review-panel"><div class="panel-heading"><div><span class="eyebrow">REVIEW QUEUE</span><h2>待審閱條款</h2></div><button class="filter-button" type="button">全部狀態⌄</button></div><div class="table-wrap"><table><thead><tr><th>文件與條款</th><th>提醒類型</th><th>最後更新</th><th>狀態</th><th></th></tr></thead><tbody><tr><td><strong>Mutual_NDA_v3.pdf</strong><span>第 4.2 條 · Indemnification</span></td><td><span class="risk-tag high">高優先</span> 法律語氣</td><td>12 分鐘前</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr><tr><td><strong>Mutual_NDA_v3.pdf</strong><span>第 7 條 · Governing Law</span></td><td><span class="risk-tag medium">一般</span> 定義詞</td><td>15 分鐘前</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr><tr><td><strong>Service_Agreement.docx</strong><span>第 11.1 條 · Limitation of Liability</span></td><td><span class="risk-tag low">低優先</span> 金額檢查</td><td>昨日</td><td><span class="pill review">待審閱</span></td><td><button class="row-action" type="button" data-scroll-to="translator">開啟 →</button></td></tr></tbody></table></div></section>
-
-          <div class="notice-banner"><span class="notice-symbol">i</span><div><strong>翻譯結果僅供律師審閱</strong><p>本工具���供語言轉換與一致性檢查，不取代法律專業判斷。請務必核對原文、適用法律及交易脈絡。</p></div><button type="button" aria-label="關閉提示" id="dismiss-notice">×</button></div>
-        </section>
-
-        <section class="view placeholder-view" id="translator-view" hidden><div class="page-heading"><div><span class="eyebrow">TRANSLATION WORKSPACE</span><h1>合約翻譯</h1><p>上傳文件並在雙欄工作區中逐條審閱法律譯文。</p></div></div><div class="translation-workspace panel"><div class="workspace-toolbar"><div><span class="pill review">示範文件</span><strong>Mutual_NDA_v3.pdf</strong></div><div><button class="secondary-button" type="button">儲存草稿</button><button class="primary-button" type="button" id="export-button">匯出審閱版</button></div></div><div class="comparison-grid"><article><div class="column-heading">原文 English <span>Clause 4.2</span></div><p><b>4.2 Indemnification.</b> Each Party shall indemnify and hold harmless the other Party from and against any and all claims, losses, liabilities and expenses arising out of a breach of this Agreement.</p></article><article><div class="column-heading">繁體中文譯文 <span class="translation-status">AI 建議譯文</span></div><p><b>4.2 賠償。</b>任一方均應就因違反本協議而產生之任何及所有請求、損失、責任及費用，向另一方提供賠償並使其免受損害。</p><button class="review-check" type="button">✓ 標記為已審閱</button></article></div><div class="alerts"><h3>審閱提醒</h3><div class="alert-item"><span class="alert-icon high">!</span><div><strong>法律義務語氣</strong><p>shall 已譯為「應」，表示具拘束力之義務，請確認是否符合本案談判立場。</p></div><button class="confirm-alert" type="button">確認</button></div><div class="alert-item"><span class="alert-icon medium">⌁</span><div><strong>術語一致性</strong><p>indemnify 建議沿用術語辭典：「賠償」；hold harmless 建議：「使其免受損害」。</p></div><button class="confirm-alert" type="button">確認</button></div></div></div></section>
-
-        <section class="view placeholder-view" id="glossary-view" hidden><div class="page-heading"><div><span class="eyebrow">LEGAL GLOSSARY</span><h1>術語辭典</h1><p>統一公司常用法律、金融及合約術語的譯法。</p></div><button class="primary-button" type="button">＋ 新增術語</button></div><div class="panel glossary-panel"><div class="search-row"><input id="glossary-search" type="search" placeholder="搜尋英文術語或中文譯法…" aria-label="搜尋術語" /><span>共 128 個術語</span></div><div class="glossary-grid" id="glossary-grid"><div class="glossary-card"><strong>indemnify</strong><span>賠償</span><small>契約義務 · 已核准</small></div><div class="glossary-card"><strong>hold harmless</strong><span>使其免受損害</span><small>契約義務 · 已核准</small></div><div class="glossary-card"><strong>best efforts</strong><span>最大努力</span><small>法律標準 · 已核准</small></div><div class="glossary-card"><strong>governing law</strong><span>準據法</span><small>管轄條款 · 已核准</small></div><div class="glossary-card"><strong>Confidential Information</strong><span>機密資訊</span><small>定義詞 · 已核准</small></div><div class="glossary-card"><strong>Effective Date</strong><span>生效日</span><small>定義詞 · 已核准</small></div></div></div></section>
-
-        <section class="view placeholder-view" id="history-view" hidden><div class="page-heading"><div><span class="eyebrow">REVIEW HISTORY</span><h1>審閱紀錄</h1><p>追蹤文件版本、翻譯結果及律師確認紀錄。</p></div></div><div class="panel empty-panel"><div class="empty-icon">↺</div><h2>審閱紀錄已集中管理</h2><p>從工作總覽開啟文件後，所有操作將自動記錄於此。</p></div></section>
-        <section class="view placeholder-view" id="settings-view" hidden><div class="page-heading"><div><span class="eyebrow">SYSTEM SETTINGS</span><h1>系統設定</h1><p>管理翻譯偏好、權限與資料保存政策。</p></div></div><div class="panel settings-list"><label>預設翻譯方向<select><option>英文 → 繁體中文</option><option>繁體中文 → 英文</option></select></label><label>文件保存期限<select><option>30 天</option><option>90 天</option><option>依企業政策</option></select></label><label class="toggle-row">翻譯完成後寄送通知 <input type="checkbox" checked /><span class="toggle"></span></label></div></section>
-      </div>
-    </main>
-  </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="script.js"></script>
 </body>
 </html>
