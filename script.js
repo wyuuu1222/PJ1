@@ -138,10 +138,31 @@ const detectHints = (text) => hintRules
   .map(({ title, message }) => ({ title, message }));
 
 const renderComparison = (clauses, translations, from, to) => {
-  comparisonHead.innerHTML = `<span>原文（${languageLabels[from]}）</span><span>譯文（${languageLabels[to]}）</span>`;
-  comparisonList.innerHTML = clauses
-    .map((clause, index) => `<li><div class="clause-row"><p class="clause-cell">${clause}</p><p class="clause-cell">${translations[index]}</p></div></li>`)
-    .join('');
+  comparisonHead.innerHTML = '';
+  const sourceHead = document.createElement('span');
+  sourceHead.textContent = `原文（${languageLabels[from]}）`;
+  const targetHead = document.createElement('span');
+  targetHead.textContent = `譯文（${languageLabels[to]}）`;
+  comparisonHead.append(sourceHead, targetHead);
+
+  comparisonList.innerHTML = '';
+  clauses.forEach((clause, index) => {
+    const item = document.createElement('li');
+    const row = document.createElement('div');
+    row.className = 'clause-row';
+
+    const sourceCell = document.createElement('p');
+    sourceCell.className = 'clause-cell';
+    sourceCell.textContent = clause;
+
+    const targetCell = document.createElement('p');
+    targetCell.className = 'clause-cell';
+    targetCell.textContent = translations[index];
+
+    row.append(sourceCell, targetCell);
+    item.appendChild(row);
+    comparisonList.appendChild(item);
+  });
   emptyState.hidden = true;
   comparison.hidden = false;
 };
