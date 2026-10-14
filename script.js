@@ -1,75 +1,233 @@
-const $ = (selector, parent = document) => parent.querySelector(selector);
-const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
+const $ = (selector) => document.querySelector(selector);
 
-const toast = (message) => {
-  const el = $('#toast');
-  el.textContent = message;
-  el.classList.add('show');
-  window.clearTimeout(window.toastTimer);
-  window.toastTimer = window.setTimeout(() => el.classList.remove('show'), 2800);
+const sourceLanguage = $('#source-language');
+const targetLanguage = $('#target-language');
+const sourceText = $('#source-text');
+const translateButton = $('#translate-button');
+const copyButton = $('#copy-button');
+const clearButton = $('#clear-button');
+const status = $('#status');
+const emptyState = $('#empty-state');
+const comparison = $('#comparison');
+const comparisonHead = $('#comparison-head');
+const comparisonList = $('#comparison-list');
+const hintEmpty = $('#hint-empty');
+const reviewHints = $('#review-hints');
+
+const languageLabels = {
+  'zh-Hant': '繁體中文',
+  en: '英文',
+  ja: '日文',
 };
 
-const viewNames = { dashboard: '工作總覽', translator: '合約翻譯', glossary: '術語辭典', history: '審閱紀錄', settings: '系統設定' };
-const showView = (name) => {
-  $$('.view').forEach((view) => { view.hidden = !view.id.startsWith(`${name}-`); });
-  $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === name));
-  $('#page-title').textContent = viewNames[name] || '工作總覽';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+const legalDictionary = {
+  en: {
+    'shall': '應',
+    'must': '應',
+    'confidential information': '機密資訊',
+    'terminate': '終止',
+    'liability': '責任',
+    'indemnify': '賠償',
+    'governing law': '準據法',
+    'dispute resolution': '爭議解決',
+    'payment': '付款',
+    'within': '於',
+  },
+  'zh-Hant': {
+    '應': 'shall',
+    '機密資訊': 'Confidential Information',
+    '終止': 'terminate',
+    '責任': 'liability',
+    '賠償': 'indemnify',
+    '準據法': 'governing law',
+    '爭議解決': 'dispute resolution',
+    '付款': 'payment',
+  },
 };
 
-$$('.nav-item').forEach((item) => item.addEventListener('click', (event) => {
-  event.preventDefault();
-  showView(item.dataset.view);
-  history.replaceState(null, '', `#${item.dataset.view}`);
-}));
+const hintRules = [
+  {
+    title: '義務（Obligation）',
+    keywords: [/\bshall\b/i, /\bmust\b/i, /應/, /不得/],
+    message: '條款可能含強制義務語氣，可能需要確認義務範圍、履行條件與違約後果。',
+  },
+  {
+    title: '權利（Rights）',
+    keywords: [/\bright\b/i, /得以/, /有權/],
+    message: '條款可能涉及權利行使，可能需要確認觸發要件、限制條件與通知程序。',
+  },
+  {
+    title: '期限（Term）',
+    keywords: [/\bday\b/i, /\bmonth\b/i, /\byear\b/i, /期限/, /日內/, /期間/],
+    message: '條款可能涉及期限設定，可能需要確認起算點、展延機制與逾期效果。',
+  },
+  {
+    title: '付款（Payment）',
+    keywords: [/\bpayment\b/i, /\bfee\b/i, /\busd\b/i, /付款/, /費用/, /金額/],
+    message: '條款可能涉及付款條件，可能需要確認幣別、稅務、付款時點與遲延責任。',
+  },
+  {
+    title: '責任限制（Limitation of Liability）',
+    keywords: [/liability/i, /責任限制/, /間接損害/, /consequential/i],
+    message: '條款可能涉及責任限制，可能需要確認責任上限、排除範圍與例外情形。',
+  },
+  {
+    title: '終止（Termination）',
+    keywords: [/terminate/i, /termination/i, /終止/, /解除/],
+    message: '條款可能涉及終止機制，可能需要確認終止事由、補救期間與終止後義務。',
+  },
+  {
+    title: '保密（Confidentiality）',
+    keywords: [/confidential/i, /non-disclosure/i, /保密/, /機密/],
+    message: '條款可能涉及保密義務，可能需要確認資訊範圍、允許揭露例外與保存期間。',
+  },
+  {
+    title: '準據法（Governing Law）',
+    keywords: [/governing law/i, /準據法/, /applicable law/i],
+    message: '條款可能涉及準據法安排，可能需要確認法域選擇與強制規範衝突風險。',
+  },
+  {
+    title: '爭議解決（Dispute Resolution）',
+    keywords: [/arbitration/i, /court/i, /dispute/i, /爭議解決/, /仲裁/, /管轄法院/],
+    message: '條款可能涉及爭議解決程序，可能需要確認管轄、仲裁地與程序語言。',
+  },
+];
 
-$$('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
-$$('[data-scroll-to]').forEach((button) => button.addEventListener('click', () => {
-  const target = button.dataset.scrollTo;
-  if (target === 'translator') showView('translator');
-  else document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' });
-}));
+let lastTranslation = '';
 
-const uploadZone = $('#upload-zone');
-const fileInput = $('#file-input');
-const selectedFile = $('#selected-file');
-const fileName = $('#file-name');
-const fileSize = $('#file-size');
-const formatSize = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-const setFile = (file) => {
-  if (!file) return;
-  fileName.textContent = file.name;
-  fileSize.textContent = `${formatSize(file.size)} · 已準備上傳`;
-  selectedFile.hidden = false;
-  toast(`已選取文件：${file.name}`);
+const setStatus = (message, tone = '') => {
+  status.textContent = message;
+  status.className = `status ${tone}`.trim();
 };
 
-$('#choose-file').addEventListener('click', (event) => { event.stopPropagation(); fileInput.click(); });
-uploadZone.addEventListener('click', () => fileInput.click());
-uploadZone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') fileInput.click(); });
-fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
-['dragenter', 'dragover'].forEach((eventName) => uploadZone.addEventListener(eventName, (event) => { event.preventDefault(); uploadZone.classList.add('dragging'); }));
-['dragleave', 'drop'].forEach((eventName) => uploadZone.addEventListener(eventName, (event) => { event.preventDefault(); uploadZone.classList.remove('dragging'); }));
-uploadZone.addEventListener('drop', (event) => setFile(event.dataTransfer.files[0]));
-$('#remove-file').addEventListener('click', () => { fileInput.value = ''; selectedFile.hidden = true; toast('已移除文件'); });
+const splitClauses = (text) => text
+  .split(/(?<=[。.!?;；])\s+/)
+  .map((item) => item.trim())
+  .filter(Boolean);
 
-$('#translate-button').addEventListener('click', () => {
-  const button = $('#translate-button');
-  const original = button.innerHTML;
-  button.disabled = true;
-  button.innerHTML = '<span>◌</span> 正在分析條款…';
-  window.setTimeout(() => { button.disabled = false; button.innerHTML = original; toast('翻譯完成，已產生 12 項條款審閱提醒'); showView('translator'); }, 1600);
+const applyDictionary = (text, dictionary) => {
+  let translated = text;
+  Object.entries(dictionary).forEach(([source, target]) => {
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(escaped, 'gi');
+    translated = translated.replace(pattern, target);
+  });
+  return translated;
+};
+
+const buildMockTranslation = (clause, from, to) => {
+  if (from === to) {
+    return `【同語言檢視】${clause}`;
+  }
+
+  if (from === 'en' && to === 'zh-Hant') {
+    const converted = applyDictionary(clause, legalDictionary.en);
+    return `【法律語境示範譯文】${converted}`;
+  }
+
+  if (from === 'zh-Hant' && to === 'en') {
+    const converted = applyDictionary(clause, legalDictionary['zh-Hant']);
+    return `[Legal-style draft] ${converted}`;
+  }
+
+  return `【Mock 譯文】此為 ${languageLabels[from]}→${languageLabels[to]} 的示範輸出，正式案件可能需要確認專有名詞與法律語氣：${clause}`;
+};
+
+const detectHints = (text) => hintRules
+  .filter((rule) => rule.keywords.some((keyword) => keyword.test(text)))
+  .map(({ title, message }) => ({ title, message }));
+
+const renderComparison = (clauses, translations, from, to) => {
+  comparisonHead.innerHTML = `<span>原文（${languageLabels[from]}）</span><span>譯文（${languageLabels[to]}）</span>`;
+  comparisonList.innerHTML = clauses
+    .map((clause, index) => `<li><div class="clause-row"><p class="clause-cell">${clause}</p><p class="clause-cell">${translations[index]}</p></div></li>`)
+    .join('');
+  emptyState.hidden = true;
+  comparison.hidden = false;
+};
+
+const renderHints = (hints) => {
+  if (!hints.length) {
+    reviewHints.hidden = true;
+    hintEmpty.hidden = false;
+    return;
+  }
+
+  reviewHints.innerHTML = hints
+    .map((hint) => `<li><strong>${hint.title}</strong><span>${hint.message}</span></li>`)
+    .join('');
+
+  hintEmpty.hidden = true;
+  reviewHints.hidden = false;
+};
+
+const translateWorkflow = () => {
+  const rawText = sourceText.value.trim();
+  const from = sourceLanguage.value;
+  const to = targetLanguage.value;
+
+  if (!rawText) {
+    setStatus('請先輸入原始合約條款，再執行翻譯。', 'error');
+    sourceText.focus();
+    return;
+  }
+
+  if (from === to) {
+    setStatus('原文語言與目標語言相同，系統將以同語言檢視模式呈現。', 'error');
+  }
+
+  translateButton.disabled = true;
+  translateButton.textContent = '處理中…';
+  setStatus('正在產生 mock/demo 翻譯與審閱提示，請稍候…');
+
+  window.setTimeout(() => {
+    const clauses = splitClauses(rawText);
+    const translations = clauses.map((clause) => buildMockTranslation(clause, from, to));
+    const hints = detectHints(rawText);
+
+    lastTranslation = translations.join('\n');
+    renderComparison(clauses, translations, from, to);
+    renderHints(hints);
+
+    setStatus('已完成翻譯與審閱提示生成（mock/demo）。請逐句審閱並由法律專業人士確認。', 'ok');
+    translateButton.disabled = false;
+    translateButton.textContent = '開始翻譯與審閱';
+  }, 700);
+};
+
+const copyTranslation = async () => {
+  if (!lastTranslation) {
+    setStatus('目前沒有可複製的譯文，請先執行翻譯。', 'error');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(lastTranslation);
+    setStatus('譯文已複製到剪貼簿。', 'ok');
+  } catch (error) {
+    setStatus('無法直接存取剪貼簿，請手動選取譯文後複製。', 'error');
+  }
+};
+
+const clearAll = () => {
+  sourceText.value = '';
+  lastTranslation = '';
+  comparison.hidden = true;
+  emptyState.hidden = false;
+  reviewHints.hidden = true;
+  hintEmpty.hidden = false;
+  sourceLanguage.value = 'en';
+  targetLanguage.value = 'zh-Hant';
+  setStatus('已清除內容。您可以輸入新的條款進行翻譯。');
+  sourceText.focus();
+};
+
+translateButton.addEventListener('click', translateWorkflow);
+copyButton.addEventListener('click', copyTranslation);
+clearButton.addEventListener('click', clearAll);
+
+sourceText.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    translateWorkflow();
+  }
 });
-
-$('#export-button')?.addEventListener('click', () => toast('審閱版已準備完成（展示功能）'));
-$('#dismiss-notice').addEventListener('click', (event) => event.currentTarget.closest('.notice-banner').remove());
-$$('.confirm-alert').forEach((button) => button.addEventListener('click', () => { button.textContent = '已確認'; button.disabled = true; button.style.color = '#238b67'; toast('提醒已標記為確認'); }));
-$$('.review-check').forEach((button) => button.addEventListener('click', () => { button.textContent = '✓ 已標記審閱'; button.disabled = true; toast('條款已標記為完成審閱'); }));
-
-$('#glossary-search')?.addEventListener('input', (event) => {
-  const query = event.target.value.trim().toLowerCase();
-  $$('.glossary-card').forEach((card) => { card.hidden = query && !card.textContent.toLowerCase().includes(query); });
-});
-
-const initialView = window.location.hash.replace('#', '');
-if (viewNames[initialView]) showView(initialView);
